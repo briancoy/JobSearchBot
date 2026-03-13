@@ -1,16 +1,19 @@
-import jobspy.google
+
 import config
+from jobspy import scrape_jobs
 import csv
 
 from jobspy import scrape_jobs
 jobs = scrape_jobs(
-    site_name = ["indeed", "linkedin", "zip_recruiter", "google", "glassdoor"],
-    search_term = "data analyst",
-    google_search_term = "data analyst jobs near bowling green ky since yesterday",
-    location = "USA",
-    results_wanted = 100,
-    hours_old = 48,
-    country_indeed = "USA"
+    # Build active search lists from config file
+    site_name = [key for key, value in config.sites_to_search.items() if value is True],
+    search_term = config.job_titles[0],
+    google_search_term = f"{config.job_titles[0]} jobs near {config.locations[0]} since yesterday",
+    location = config.locations[0],
+    results_wanted = config.postings_per_site,
+    hours_old = config.posting_age,
+    country_indeed = "USA",
+    distance = config.radius
     )
 
 print(f"Found {len(jobs)} jobs")
