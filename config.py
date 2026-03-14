@@ -17,11 +17,7 @@ job_titles = [
 # Location mode can be "city", "zip", or "remote"
 
 location_mode = "remote"
-locations = [
-    "Bowling Green, KY",
-    "42104",
-    "Remote"
-]
+locations = {"city": "Bowling Green, KY", "zip": "42104", "remote": "remote"}
 
 # Distance from location in miles to search
 radius = 50

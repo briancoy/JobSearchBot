@@ -1,7 +1,6 @@
 
 import config
 from jobspy import scrape_jobs
-import csv
 import sqlite3
 import pandas as pd
 
@@ -34,7 +33,6 @@ jobs = scrape_jobs(
 
 print(f"Found {len(jobs)} jobs")
 print(jobs.head())
-#jobs.to_csv("jobs.csv", quoting = csv.QUOTE_NONNUMERIC, escapechar = "\\", index = False)
 
 with sqlite3.connect("jobs.db") as conn:
     cursor = conn.cursor()
