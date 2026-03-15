@@ -185,25 +185,26 @@ def main():
                 for job in saved_jobs:
                     print(f"{str(job[0]):<40} {str(job[1]):<12} {str(job[2]):<35} {str(job[3]):<30} {str(job[4])}")
                 print(f"\nPage {page + 1} of {total_pages}  |  Showing {offset + 1}–{offset + len(saved_jobs)} of {total} jobs")
-                print("  next - Next page  |  prev - Previous page  |  back - Main menu")
+                print("  [Enter]/next - Next page  |  prev - Previous page  |  back - Main menu")
 
-                nav = input("\n  Navigate: ").lower().strip()
+                nav = input("\n  Navigate [Enter=next]: ").lower().strip()
 
-                if nav == "next":
+                if nav in ("next", ""):          # ← empty string treated same as "next"
                     if offset + len(saved_jobs) < total:
                         page += 1
                     else:
                         print("  Already on the last page.")
-                        nav = ""   # Stay in loop
+                        nav = ""
                 elif nav == "prev":
                     if page > 0:
                         page -= 1
                     else:
                         print("  Already on the first page.")
-                        nav = ""   # Stay in loop
+                        nav = ""
                 elif nav != "back":
                     print("  Unknown command. Use 'next', 'prev', or 'back'.")
-                    nav = ""   # Stay in loop
+                    nav = ""
+
 
 
         elif user_input != "exit":
