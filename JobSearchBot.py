@@ -1,17 +1,17 @@
 # main.py
-
 import config
-import searchBot
 import sqlite3
+from jobspy import scrape_jobs
+import pandas as pd
+
 
 DB = "jobs.db"
 
 def init_db():
-    """Creates all tables on first run. Safe to call every startup."""
     with sqlite3.connect(DB) as conn:
         cursor = conn.cursor()
 
-        # Key/value settings store — flexible, no schema changes needed to add settings
+        # Settings table
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS settings (
                 key     TEXT NOT NULL UNIQUE,
@@ -19,14 +19,14 @@ def init_db():
             )
         """)
 
-        # Separate table for job title search terms (one per row — easy to add/remove)
+        # Job search table
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS job_titles (
                 title   TEXT NOT NULL UNIQUE
             )
         """)
 
-        # Separate table for email recipients (one per row)
+        # Email recipient table
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS email_recipients (
                 address TEXT NOT NULL UNIQUE
@@ -70,6 +70,16 @@ def init_db():
                 company_reviews_count   INTEGER,
                 vacancy_count           INTEGER,
                 work_from_home_type     TEXT
+            )
+        """)
+
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS black_list (
+                id                      TEXT NOT NULL UNIQUE,
+                site                    TEXT,
+                title                   TEXT,
+                company                 TEXT,
+                location                TEXT
             )
         """)
 
@@ -117,7 +127,7 @@ def init_db():
 
 
 def main():
-    init_db()   # ← Always run at startup
+    init_db()   # ensure the jobs DB exists, crete it if it doesn't
 
     print("\nWelcome to JobSearchBot")
     print("  search  - Start a new search")
@@ -130,7 +140,7 @@ def main():
         user_input = input("Enter an option or 'exit' to quit: ").lower()
 
         if user_input == "search":
-            searchBot.main()
+            job_search()
 
         elif user_input == "options":
             print("Settings editor coming soon.")
@@ -152,6 +162,90 @@ def main():
 
     print("Goodbye!")
 
+def save_jobs_to_db():
+    cursor = conn.cursor()
+
+    cols = ", ".join(jobs.columns)
+    placeholders = ", ".join(["?" for _ in jobs.columns])
+    sql = f"INSERT OR IGNORE INTO JOBS ({cols}) VALUES ({placeholders})"
+
+    rows = [tuple(row) for rows in jobs.itertuples(index = False, name = None)]
+
+    cursor = executemany(sql, rows)
+    skipped = len(jobs) - inserted
+    print(f"Saved {inserted} new jobs. Skipped {skipped} duplicates.")
+
+def job_search():
+    
+    if config.location_mode == "remote":
+        search_location = None
+        is_remote = True
+        search_distance = None
+        google_location = "remote"
+    else:
+        search_location = config.locations[config.location_mode]
+        is_remote = False
+        search_distance = config.radius
+        google_location = search_location
+    active_sites = [key for key, value in config.sites_to_search.items() if value is True]
+
+    jobs = scrape_jobs(
+        # Build active search lists from config file
+        site_name = active_sites,
+        search_term = config.job_titles[0],
+        google_search_term = f"{config.job_titles[0]} jobs near {google_location} since yesterday",
+        location = search_location,
+        results_wanted = config.postings_per_site,
+        hours_old = config.posting_age,
+        country_indeed = "USA",
+        is_remote = is_remote,
+        distance = search_distance
+        )
+
+    print(f"Found {len(jobs)} jobs")
+    print(jobs.head())
+
+    with sqlite3.connect("jobs.db") as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS jobs (
+            id TEXT NOT NULL UNIQUE,
+            site TEXT,
+            job_url TEXT,
+            job_url_direct	TEXT,
+            title TEXT,
+            company TEXT,
+            location TEXT,
+            date_posted DATE,
+            job_type TEXT,
+            salary_source TEXT,
+            interval TEXT,
+            min_amount INTEGER,
+            max_amount INTEGER,
+            currency TEXT,
+            is_remote BOOLEAN,
+            job_level TEXT,
+            job_function TEXT,
+            listing_type TEXT,
+            emails TEXT,
+            description TEXT,
+            company_industry TEXT,
+            company_url TEXT,
+            company_logo TEXT,
+            company_url_direct TEXT,
+            company_addresses TEXT,
+            company_num_employees INTEGER,
+            company_revenue INTEGER,
+            company_description	TEXT,
+            skills TEXT,
+            experience_range TEXT,
+            company_rating FLOAT,
+            company_reviews_count INTEGER,
+            vacancy_count INTEGER,
+            work_from_home_type TEXT
+            )
+        """)
+        save_jobs_to_db()
 
 if __name__ == "__main__":
     main()
