@@ -146,23 +146,65 @@ def main():
             options_menu()
 
         elif user_input == "list":
-            limit = int(get_setting("list_limit") or 25)       # ← read from DB
-            with sqlite3.connect(DB) as conn:
-                cursor = conn.cursor()
-                saved_jobs = cursor.execute("""
-                    SELECT id, site, title, company, location
-                    FROM jobs
-                    ORDER BY date_posted DESC
-                    LIMIT ?                                     -- ← apply the limit
-                """, (limit,)).fetchall()
-            if not saved_jobs:
-                print("No saved jobs found.")
-            else:
+            page      = 0
+            page_size = int(get_setting("list_limit") or 25)
+            nav       = ""
+
+            while nav != "back":
+                offset = page * page_size
+
+                with sqlite3.connect(DB) as conn:
+                    cursor = conn.cursor()
+
+                    # Get one page of results
+                    saved_jobs = cursor.execute("""
+                        SELECT id, site, title, company, location
+                        FROM jobs
+                        ORDER BY date_posted DESC
+                        LIMIT ? OFFSET ?
+                    """, (page_size, offset)).fetchall()
+
+                    # Get total count for page indicator
+                    total = cursor.execute(
+                        "SELECT COUNT(*) FROM jobs"
+                    ).fetchone()[0]
+
+                if not saved_jobs:
+                    if page == 0:
+                        print("No saved jobs found.")
+                        break
+                    else:
+                        print("No more jobs to show.")
+                        page -= 1   # Step back so next/prev still works
+                        continue
+
+                # Display the page
+                total_pages = -(-total // page_size)  # Ceiling division
                 print(f"\n{'ID':<40} {'Site':<12} {'Title':<35} {'Company':<30} {'Location'}")
                 print("-" * 130)
                 for job in saved_jobs:
                     print(f"{str(job[0]):<40} {str(job[1]):<12} {str(job[2]):<35} {str(job[3]):<30} {str(job[4])}")
-                print(f"\nShowing {len(saved_jobs)} of most recent postings (limit: {limit})\n")
+                print(f"\nPage {page + 1} of {total_pages}  |  Showing {offset + 1}–{offset + len(saved_jobs)} of {total} jobs")
+                print("  next - Next page  |  prev - Previous page  |  back - Main menu")
+
+                nav = input("\n  Navigate: ").lower().strip()
+
+                if nav == "next":
+                    if offset + len(saved_jobs) < total:
+                        page += 1
+                    else:
+                        print("  Already on the last page.")
+                        nav = ""   # Stay in loop
+                elif nav == "prev":
+                    if page > 0:
+                        page -= 1
+                    else:
+                        print("  Already on the first page.")
+                        nav = ""   # Stay in loop
+                elif nav != "back":
+                    print("  Unknown command. Use 'next', 'prev', or 'back'.")
+                    nav = ""   # Stay in loop
+
 
         elif user_input != "exit":
             print("Unrecognized option. Try 'search', 'options', 'list', or 'exit'.")
