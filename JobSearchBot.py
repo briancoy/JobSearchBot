@@ -146,7 +146,7 @@ def main():
         print("  options - Change settings")
         print("  list    - Show saved job postings")
         print("  exit    - Quit\n")
-        user_input = get_input("Enter an option or 'exit' to quit: ").lower()
+        user_input = get_input("Enter an option or 'exit' to quit: ")
 
         if user_input == "search":
             job_search()
@@ -196,7 +196,7 @@ def main():
                 print(f"\nPage {page + 1} of {total_pages}  |  Showing {offset + 1}–{offset + len(saved_jobs)} of {total} jobs")
                 print("  [Enter]/next - Next page  |  prev - Previous page  |  back - Main menu")
 
-                user_input = get_input("\n  Navigate [Enter=next]: ").lower().strip()
+                user_input = get_input("\n  Navigate [Enter=next]: ")
 
                 if user_input in ("next", ""):          # ← empty string treated same as "next"
                     if offset + len(saved_jobs) < total:
@@ -237,36 +237,44 @@ def save_jobs_to_db(jobs, conn):
     print(f"Saved {inserted} new jobs. Skipped {skipped} duplicates.")
 
 def job_search():
-    
-    if config.location_mode == "remote":
+    location_mode = get_setting("location_mode")
+
+    if location_mode == "remote":
         search_location = None
-        is_remote = True
+        is_remote       = True
         search_distance = None
         google_location = "remote"
     else:
-        search_location = config.locations[config.location_mode]
-        is_remote = False
-        search_distance = config.radius
+        search_location = get_setting(location_mode)  # gets "city" or "zip" value
+        is_remote       = False
+        search_distance = int(get_setting("radius"))
         google_location = search_location
-    active_sites = [key for key, value in config.sites_to_search.items() if value is True]
+
+    sites        = ["linkedin", "indeed", "glassdoor", "zip_recruiter", "google"]
+    active_sites = [s for s in sites if get_setting(s) == "True"]
+
+    with sqlite3.connect(DB) as conn:
+        cursor = conn.cursor()
+        job_titles = [row[0] for row in cursor.execute(
+            "SELECT title FROM job_titles"
+        ).fetchall()]
 
     jobs = scrape_jobs(
-        # Build active search lists from config file
-        site_name = active_sites,
-        search_term = config.job_titles[0],
-        google_search_term = f"{config.job_titles[0]} jobs near {google_location} since yesterday",
-        location = search_location,
-        results_wanted = config.postings_per_site,
-        hours_old = config.posting_age,
-        country_indeed = "USA",
-        is_remote = is_remote,
-        distance = search_distance
-        )
+        site_name          = active_sites,
+        search_term        = job_titles[0],
+        google_search_term = f"{job_titles[0]} jobs near {google_location} since yesterday",
+        location           = search_location,
+        is_remote          = is_remote,
+        results_wanted     = int(get_setting("postings_per_site")),
+        hours_old          = int(get_setting("posting_age")),
+        country_indeed     = "USA",
+        distance           = search_distance,
+    )
 
     print(f"Found {len(jobs)} jobs")
     print(jobs.head())
 
-    with sqlite3.connect("jobs.db") as conn:
+    with sqlite3.connect(DB) as conn:
         save_jobs_to_db(jobs, conn)
 
 def get_setting(key):
@@ -310,7 +318,7 @@ def options_menu():
         print("  back      - Return to main menu")
         print("")
 
-        opt_input = get_input("Choose a setting to change: ").lower().strip()
+        opt_input = get_input("Choose a setting to change: ")
 
         if opt_input == "location":
             change_location_settings()
