@@ -93,6 +93,7 @@ def init_db():
                 ("radius",            str(config.radius)),
                 ("posting_age",       str(config.posting_age)),
                 ("postings_per_site", str(config.postings_per_site)),
+                ("list_limit",        "25"),
                 ("linkedin",          str(config.sites_to_search["linkedin"])),
                 ("indeed",            str(config.sites_to_search["indeed"])),
                 ("glassdoor",         str(config.sites_to_search["glassdoor"])),
@@ -125,7 +126,6 @@ def init_db():
         conn.commit()
     print("Database initialized.")
 
-
 def main():
     init_db()   # ensure the jobs DB exists, crete it if it doesn't
 
@@ -146,16 +146,23 @@ def main():
             options_menu()
 
         elif user_input == "list":
+            limit = int(get_setting("list_limit") or 25)       # ← read from DB
             with sqlite3.connect(DB) as conn:
                 cursor = conn.cursor()
                 saved_jobs = cursor.execute("""
-                    SELECT id, site, job_url, title, company FROM jobs
-                """).fetchall()
+                    SELECT id, site, title, company, location
+                    FROM jobs
+                    ORDER BY date_posted DESC
+                    LIMIT ?                                     -- ← apply the limit
+                """, (limit,)).fetchall()
             if not saved_jobs:
                 print("No saved jobs found.")
             else:
+                print(f"\n{'ID':<40} {'Site':<12} {'Title':<35} {'Company':<30} {'Location'}")
+                print("-" * 130)
                 for job in saved_jobs:
-                    print(job)
+                    print(f"{str(job[0]):<40} {str(job[1]):<12} {str(job[2]):<35} {str(job[3]):<30} {str(job[4])}")
+                print(f"\nShowing {len(saved_jobs)} of most recent postings (limit: {limit})\n")
 
         elif user_input != "exit":
             print("Unrecognized option. Try 'search', 'options', 'list', or 'exit'.")
@@ -219,7 +226,6 @@ def get_setting(key):
             "SELECT value FROM settings WHERE key = ?", (key,)
         ).fetchone()
     return result[0] if result else None
-
 
 def set_setting(key, value):
     """Write a single setting value to the database."""
@@ -302,7 +308,6 @@ def change_location_settings():
         else:
             print("  Invalid radius — must be a number.")
 
-
 def change_search_settings():
     print("\n-- Search Settings --")
 
@@ -322,6 +327,15 @@ def change_search_settings():
         else:
             print("  Invalid value — must be a number.")
 
+    # ← Add this block
+    limit = input(f"  Max jobs to display in list [{get_setting('list_limit')}]: ").strip()
+    if limit:
+        if limit.isdigit():
+            set_setting("list_limit", limit)
+            print(f"  ✓ List limit set to {limit}")
+        else:
+            print("  Invalid value — must be a number.")
+
 
 def change_site_settings():
     sites = ["linkedin", "indeed", "glassdoor", "zip_recruiter", "google"]
@@ -335,9 +349,7 @@ def change_site_settings():
             print(f"  ✓ {site} enabled")
         elif toggle == "n":
             set_setting(site, "False")
-            print(f"  ✓ {site} disabled")
-        # blank input = keep current value
-
+            print(f"  ✓ {site} disabled")# blank input = keep current value
 
 def change_job_titles():
     print("\n-- Job Title Search Terms --")
@@ -379,7 +391,6 @@ def change_job_titles():
             print(f"  ✓ Removed '{rem_title}'")
         else:
             print("  Unknown command. Use 'add <title>', 'remove <title>', or 'done'.")
-
 
 def change_email_settings():
     print("\n-- Email Settings --")
