@@ -143,7 +143,7 @@ def main():
             job_search()
 
         elif user_input == "options":
-            print("Settings editor coming soon.")
+            options_menu()
 
         elif user_input == "list":
             with sqlite3.connect(DB) as conn:
@@ -210,6 +210,226 @@ def job_search():
 
     with sqlite3.connect("jobs.db") as conn:
         save_jobs_to_db(jobs, conn)
+
+def get_setting(key):
+    """Read a single setting value from the database."""
+    with sqlite3.connect(DB) as conn:
+        cursor = conn.cursor()
+        result = cursor.execute(
+            "SELECT value FROM settings WHERE key = ?", (key,)
+        ).fetchone()
+    return result[0] if result else None
+
+
+def set_setting(key, value):
+    """Write a single setting value to the database."""
+    with sqlite3.connect(DB) as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "UPDATE settings SET value = ? WHERE key = ?", (str(value), key)
+        )
+        conn.commit()
+
+def options_menu():
+    opt_input = ""
+    while opt_input != "back":
+
+        # Show current settings summary each time the menu loads
+        print("\n--- Current Settings ---")
+        print(f"  Location mode : {get_setting('location_mode')}")
+        print(f"  City          : {get_setting('city')}")
+        print(f"  ZIP           : {get_setting('zip')}")
+        print(f"  Radius        : {get_setting('radius')} miles")
+        print(f"  Posting age   : {get_setting('posting_age')} hours")
+        print(f"  Per site      : {get_setting('postings_per_site')} results")
+        print(f"  Email enabled : {get_setting('email_enabled')}")
+        print(f"  Email sender  : {get_setting('email_sender')}")
+        print("\n--- Options Menu ---")
+        print("  location  - Change location settings")
+        print("  search    - Change search settings")
+        print("  sites     - Toggle job sites on/off")
+        print("  titles    - Edit job title search terms")
+        print("  email     - Change email settings")
+        print("  back      - Return to main menu")
+        print("")
+
+        opt_input = input("Choose a setting to change: ").lower().strip()
+
+        if opt_input == "location":
+            change_location_settings()
+        elif opt_input == "search":
+            change_search_settings()
+        elif opt_input == "sites":
+            change_site_settings()
+        elif opt_input == "titles":
+            change_job_titles()
+        elif opt_input == "email":
+            change_email_settings()
+        elif opt_input != "back":
+            print("Unrecognized option.")
+        # show the main menu again
+        print("  search  - Start a new search")
+        print("  options - Change settings")
+        print("  list    - Show saved job postings")
+        print("  exit    - Quit\n")
+
+def change_location_settings():
+    print("\n-- Location Settings --")
+    print("  Location mode options: city, zip, remote")
+    
+    mode = input(f"  Location mode [{get_setting('location_mode')}]: ").strip().lower()
+    if mode in ("city", "zip", "remote"):
+        set_setting("location_mode", mode)
+        print(f"  ✓ Location mode set to '{mode}'")
+    elif mode:
+        print("  Invalid mode. Must be city, zip, or remote.")
+
+    city = input(f"  City [{get_setting('city')}]: ").strip()
+    if city:
+        set_setting("city", city)
+        print(f"  ✓ City set to '{city}'")
+
+    zip_code = input(f"  ZIP [{get_setting('zip')}]: ").strip()
+    if zip_code:
+        set_setting("zip", zip_code)
+        print(f"  ✓ ZIP set to '{zip_code}'")
+
+    radius = input(f"  Radius in miles [{get_setting('radius')}]: ").strip()
+    if radius:
+        if radius.isdigit():
+            set_setting("radius", radius)
+            print(f"  ✓ Radius set to {radius} miles")
+        else:
+            print("  Invalid radius — must be a number.")
+
+
+def change_search_settings():
+    print("\n-- Search Settings --")
+
+    age = input(f"  Max posting age in hours [{get_setting('posting_age')}]: ").strip()
+    if age:
+        if age.isdigit():
+            set_setting("posting_age", age)
+            print(f"  ✓ Posting age set to {age} hours")
+        else:
+            print("  Invalid value — must be a number.")
+
+    per_site = input(f"  Results per site [{get_setting('postings_per_site')}]: ").strip()
+    if per_site:
+        if per_site.isdigit():
+            set_setting("postings_per_site", per_site)
+            print(f"  ✓ Results per site set to {per_site}")
+        else:
+            print("  Invalid value — must be a number.")
+
+
+def change_site_settings():
+    sites = ["linkedin", "indeed", "glassdoor", "zip_recruiter", "google"]
+    print("\n-- Job Site Toggle --")
+
+    for site in sites:
+        current = get_setting(site)
+        toggle = input(f"  {site:<15} (currently {current}) — enable? [y/n]: ").strip().lower()
+        if toggle == "y":
+            set_setting(site, "True")
+            print(f"  ✓ {site} enabled")
+        elif toggle == "n":
+            set_setting(site, "False")
+            print(f"  ✓ {site} disabled")
+        # blank input = keep current value
+
+
+def change_job_titles():
+    print("\n-- Job Title Search Terms --")
+
+    with sqlite3.connect(DB) as conn:
+        cursor = conn.cursor()
+        titles = [row[0] for row in cursor.execute("SELECT title FROM job_titles").fetchall()]
+
+    print("  Current titles:")
+    for i, t in enumerate(titles, 1):
+        print(f"    {i}. {t}")
+
+    print("\n  add <title>    - Add a new title")
+    print("  remove <title> - Remove a title")
+    print("  done           - Finish editing titles")
+
+    while True:
+        cmd = input("\n  Command: ").strip()
+
+        if cmd.lower() == "done":
+            break
+        elif cmd.lower().startswith("add "):
+            new_title = cmd[4:].strip().lower()
+            with sqlite3.connect(DB) as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    "INSERT OR IGNORE INTO job_titles (title) VALUES (?)", (new_title,)
+                )
+                conn.commit()
+            print(f"  ✓ Added '{new_title}'")
+        elif cmd.lower().startswith("remove "):
+            rem_title = cmd[7:].strip().lower()
+            with sqlite3.connect(DB) as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    "DELETE FROM job_titles WHERE title = ?", (rem_title,)
+                )
+                conn.commit()
+            print(f"  ✓ Removed '{rem_title}'")
+        else:
+            print("  Unknown command. Use 'add <title>', 'remove <title>', or 'done'.")
+
+
+def change_email_settings():
+    print("\n-- Email Settings --")
+
+    enabled = input(f"  Email enabled [{get_setting('email_enabled')}] — enable? [y/n]: ").strip().lower()
+    if enabled == "y":
+        set_setting("email_enabled", "True")
+        print("  ✓ Email enabled")
+    elif enabled == "n":
+        set_setting("email_enabled", "False")
+        print("  ✓ Email disabled")
+
+    sender = input(f"  Sender address [{get_setting('email_sender')}]: ").strip()
+    if sender:
+        set_setting("email_sender", sender)
+        print(f"  ✓ Sender set to '{sender}'")
+
+    password = input("  App password (leave blank to keep current): ").strip()
+    if password:
+        set_setting("email_password", password)
+        print("  ✓ Password updated")
+
+    # Recipients
+    with sqlite3.connect(DB) as conn:
+        cursor = conn.cursor()
+        recipients = [r[0] for r in cursor.execute(
+            "SELECT address FROM email_recipients"
+        ).fetchall()]
+    print(f"  Current recipients: {recipients}")
+    
+    add_rec = input("  Add recipient (leave blank to skip): ").strip()
+    if add_rec:
+        with sqlite3.connect(DB) as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "INSERT OR IGNORE INTO email_recipients (address) VALUES (?)", (add_rec,)
+            )
+            conn.commit()
+        print(f"  ✓ Added '{add_rec}'")
+
+    rem_rec = input("  Remove recipient (leave blank to skip): ").strip()
+    if rem_rec:
+        with sqlite3.connect(DB) as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "DELETE FROM email_recipients WHERE address = ?", (rem_rec,)
+            )
+            conn.commit()
+        print(f"  ✓ Removed '{rem_rec}'")
+
 
 if __name__ == "__main__":
     main()
