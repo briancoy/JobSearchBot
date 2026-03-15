@@ -201,10 +201,15 @@ def main():
                     else:
                         print("  Already on the first page.")
                         nav = ""
+                elif nav == "exit":
+                    continue
                 elif nav != "back":
                     print("  Unknown command. Use 'next', 'prev', or 'back'.")
                     nav = ""
-
+                print("  search  - Start a new search")
+                print("  options - Change settings")
+                print("  list    - Show saved job postings")
+                print("  exit    - Quit\n")
 
 
         elif user_input != "exit":
