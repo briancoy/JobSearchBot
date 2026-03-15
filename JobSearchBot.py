@@ -5,6 +5,16 @@ from jobspy import scrape_jobs
 import pandas as pd
 
 
+class ExitApp(Exception):
+    pass
+
+def get_input(prompt):
+    """Read input and raise ExitApp if user types 'exit'."""
+    value = input(prompt).lower().strip()
+    if value == "exit":
+        raise ExitApp()
+    return value
+
 DB = "jobs.db"
 
 def init_db():
@@ -129,15 +139,14 @@ def init_db():
 def main():
     init_db()   # ensure the jobs DB exists, crete it if it doesn't
 
-    print("\nWelcome to JobSearchBot")
-    print("  search  - Start a new search")
-    print("  options - Change settings")
-    print("  list    - Show saved job postings")
-    print("  exit    - Quit\n")
-
     user_input = ""
     while user_input != "exit":
-        user_input = input("Enter an option or 'exit' to quit: ").lower()
+        print("\nWelcome to JobSearchBot")
+        print("  search  - Start a new search")
+        print("  options - Change settings")
+        print("  list    - Show saved job postings")
+        print("  exit    - Quit\n")
+        user_input = get_input("Enter an option or 'exit' to quit: ").lower()
 
         if user_input == "search":
             job_search()
@@ -146,11 +155,11 @@ def main():
             options_menu()
 
         elif user_input == "list":
-            page      = 0
+            page = 0
             page_size = int(get_setting("list_limit") or 25)
-            nav       = ""
+            user_input = ""
 
-            while nav != "back":
+            while user_input != "back":
                 offset = page * page_size
 
                 with sqlite3.connect(DB) as conn:
@@ -187,35 +196,29 @@ def main():
                 print(f"\nPage {page + 1} of {total_pages}  |  Showing {offset + 1}–{offset + len(saved_jobs)} of {total} jobs")
                 print("  [Enter]/next - Next page  |  prev - Previous page  |  back - Main menu")
 
-                nav = input("\n  Navigate [Enter=next]: ").lower().strip()
+                user_input = get_input("\n  Navigate [Enter=next]: ").lower().strip()
 
-                if nav in ("next", ""):          # ← empty string treated same as "next"
+                if user_input in ("next", ""):          # ← empty string treated same as "next"
                     if offset + len(saved_jobs) < total:
                         page += 1
                     else:
                         print("  Already on the last page.")
-                        nav = ""
-                elif nav == "prev":
+                        user_input = ""
+                elif user_input == "prev":
                     if page > 0:
                         page -= 1
                     else:
                         print("  Already on the first page.")
-                        nav = ""
-                elif nav == "exit":
-                    continue
-                elif nav != "back":
+                        user_input = ""
+                elif user_input != "back":
                     print("  Unknown command. Use 'next', 'prev', or 'back'.")
-                    nav = ""
-                print("  search  - Start a new search")
-                print("  options - Change settings")
-                print("  list    - Show saved job postings")
-                print("  exit    - Quit\n")
-
+                    user_input = ""
 
         elif user_input != "exit":
             print("Unrecognized option. Try 'search', 'options', 'list', or 'exit'.")
 
-    print("Goodbye!")
+
+
 
 def save_jobs_to_db(jobs, conn):
     cursor = conn.cursor()
@@ -307,7 +310,7 @@ def options_menu():
         print("  back      - Return to main menu")
         print("")
 
-        opt_input = input("Choose a setting to change: ").lower().strip()
+        opt_input = get_input("Choose a setting to change: ").lower().strip()
 
         if opt_input == "location":
             change_location_settings()
@@ -322,10 +325,6 @@ def options_menu():
         elif opt_input != "back":
             print("Unrecognized option.")
         # show the main menu again
-        print("  search  - Start a new search")
-        print("  options - Change settings")
-        print("  list    - Show saved job postings")
-        print("  exit    - Quit\n")
 
 def change_location_settings():
     print("\n-- Location Settings --")
@@ -491,4 +490,8 @@ def change_email_settings():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except ExitApp:
+        pass
+    print("Goodbye!")
