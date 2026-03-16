@@ -4,6 +4,7 @@ import sqlite3
 from jobspy import scrape_jobs
 import pandas as pd
 
+DB = "jobs.db"
 
 class ExitApp(Exception):
     pass
@@ -14,8 +15,6 @@ def get_input(prompt):
     if value == "exit":
         raise ExitApp()
     return value
-
-DB = "jobs.db"
 
 def init_db():
     with sqlite3.connect(DB) as conn:
@@ -217,9 +216,6 @@ def main():
         elif user_input != "exit":
             print("Unrecognized option. Try 'search', 'options', 'list', or 'exit'.")
 
-
-
-
 def save_jobs_to_db(jobs, conn):
     cursor = conn.cursor()
 
@@ -332,7 +328,6 @@ def options_menu():
             change_email_settings()
         elif opt_input != "back":
             print("Unrecognized option.")
-        # show the main menu again
 
 def change_location_settings():
     print("\n-- Location Settings --")
@@ -390,7 +385,6 @@ def change_search_settings():
             print(f"  ✓ List limit set to {limit}")
         else:
             print("  Invalid value — must be a number.")
-
 
 def change_site_settings():
     sites = ["linkedin", "indeed", "glassdoor", "zip_recruiter", "google"]
