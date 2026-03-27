@@ -2,12 +2,13 @@
 import config
 import sqlite3
 from jobspy import scrape_jobs
-import pandas as pd
 
 DB = "jobs.db"
 
+
 class ExitApp(Exception):
     pass
+
 
 def get_input(prompt):
     """Read input and raise ExitApp if user types 'exit'."""
@@ -15,6 +16,7 @@ def get_input(prompt):
     if value == "exit":
         raise ExitApp()
     return value
+
 
 def init_db():
     with sqlite3.connect(DB) as conn:
@@ -96,21 +98,21 @@ def init_db():
         cursor.execute("SELECT COUNT(*) FROM settings")
         if cursor.fetchone()[0] == 0:
             defaults = [
-                ("location_mode",     config.location_mode),
-                ("city",              config.locations["city"]),
-                ("zip",               config.locations["zip"]),
-                ("radius",            str(config.radius)),
-                ("posting_age",       str(config.posting_age)),
+                ("location_mode", config.location_mode),
+                ("city", config.locations["city"]),
+                ("zip", config.locations["zip"]),
+                ("radius", str(config.radius)),
+                ("posting_age", str(config.posting_age)),
                 ("postings_per_site", str(config.postings_per_site)),
-                ("list_limit",        "25"),
-                ("linkedin",          str(config.sites_to_search["linkedin"])),
-                ("indeed",            str(config.sites_to_search["indeed"])),
-                ("glassdoor",         str(config.sites_to_search["glassdoor"])),
-                ("zip_recruiter",     str(config.sites_to_search["zip_recruiter"])),
-                ("google",            str(config.sites_to_search["google"])),
-                ("email_enabled",     str(config.email_enabled)),
-                ("email_sender",      config.email_sender),
-                ("email_password",    config.email_password),
+                ("list_limit", "25"),
+                ("linkedin", str(config.sites_to_search["linkedin"])),
+                ("indeed", str(config.sites_to_search["indeed"])),
+                ("glassdoor", str(config.sites_to_search["glassdoor"])),
+                ("zip_recruiter", str(config.sites_to_search["zip_recruiter"])),
+                ("google", str(config.sites_to_search["google"])),
+                ("email_enabled", str(config.email_enabled)),
+                ("email_sender", config.email_sender),
+                ("email_password", config.email_password),
             ]
             cursor.executemany(
                 "INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)", defaults
@@ -121,7 +123,7 @@ def init_db():
         if cursor.fetchone()[0] == 0:
             cursor.executemany(
                 "INSERT OR IGNORE INTO job_titles (title) VALUES (?)",
-                [(t,) for t in config.job_titles]
+                [(t,) for t in config.job_titles],
             )
 
         # Seed email recipients from config if table is empty
@@ -129,14 +131,15 @@ def init_db():
         if cursor.fetchone()[0] == 0:
             cursor.executemany(
                 "INSERT OR IGNORE INTO email_recipients (address) VALUES (?)",
-                [(r,) for r in config.email_recipients]
+                [(r,) for r in config.email_recipients],
             )
 
         conn.commit()
     print("Database initialized.")
 
+
 def main():
-    init_db()   # ensure the jobs DB exists, crete it if it doesn't
+    init_db()  # ensure the jobs DB exists, crete it if it doesn't
 
     user_input = ""
     while user_input != "exit":
@@ -165,17 +168,18 @@ def main():
                     cursor = conn.cursor()
 
                     # Get one page of results
-                    saved_jobs = cursor.execute("""
+                    saved_jobs = cursor.execute(
+                        """
                         SELECT id, site, title, company, location
                         FROM jobs
                         ORDER BY date_posted DESC
                         LIMIT ? OFFSET ?
-                    """, (page_size, offset)).fetchall()
+                    """,
+                        (page_size, offset),
+                    ).fetchall()
 
                     # Get total count for page indicator
-                    total = cursor.execute(
-                        "SELECT COUNT(*) FROM jobs"
-                    ).fetchone()[0]
+                    total = cursor.execute("SELECT COUNT(*) FROM jobs").fetchone()[0]
 
                 if not saved_jobs:
                     if page == 0:
@@ -183,21 +187,29 @@ def main():
                         break
                     else:
                         print("No more jobs to show.")
-                        page -= 1   # Step back so next/prev still works
+                        page -= 1  # Step back so next/prev still works
                         continue
 
                 # Display the page
                 total_pages = -(-total // page_size)  # Ceiling division
-                print(f"\n{'ID':<40} {'Site':<12} {'Title':<35} {'Company':<30} {'Location'}")
+                print(
+                    f"\n{'ID':<40} {'Site':<12} {'Title':<35} {'Company':<30} {'Location'}"
+                )
                 print("-" * 130)
                 for job in saved_jobs:
-                    print(f"{str(job[0]):<40} {str(job[1]):<12} {str(job[2]):<35} {str(job[3]):<30} {str(job[4])}")
-                print(f"\nPage {page + 1} of {total_pages}  |  Showing {offset + 1}–{offset + len(saved_jobs)} of {total} jobs")
-                print("  [Enter]/next - Next page  |  prev - Previous page  |  back - Main menu")
+                    print(
+                        f"{str(job[0]):<40} {str(job[1]):<12} {str(job[2]):<35} {str(job[3]):<30} {str(job[4])}"
+                    )
+                print(
+                    f"\nPage {page + 1} of {total_pages}  |  Showing {offset + 1}–{offset + len(saved_jobs)} of {total} jobs"
+                )
+                print(
+                    "  [Enter]/next - Next page  |  prev - Previous page  |  back - Main menu"
+                )
 
                 user_input = get_input("\n  Navigate [Enter=next]: ")
 
-                if user_input in ("next", ""):          # ← empty string treated same as "next"
+                if user_input in ("next", ""):  # ← empty string treated same as "next"
                     if offset + len(saved_jobs) < total:
                         page += 1
                     else:
@@ -216,6 +228,7 @@ def main():
         elif user_input != "exit":
             print("Unrecognized option. Try 'search', 'options', 'list', or 'exit'.")
 
+
 def save_jobs_to_db(jobs, conn):
     cursor = conn.cursor()
 
@@ -223,7 +236,7 @@ def save_jobs_to_db(jobs, conn):
     placeholders = ", ".join(["?" for _ in jobs.columns])
     sql = f"INSERT OR IGNORE INTO jobs ({cols}) VALUES ({placeholders})"
 
-    rows = [tuple(row) for row in jobs.itertuples(index = False, name = None)]
+    rows = [tuple(row) for row in jobs.itertuples(index=False, name=None)]
 
     cursor.executemany(sql, rows)
     conn.commit()
@@ -232,39 +245,40 @@ def save_jobs_to_db(jobs, conn):
     skipped = len(jobs) - inserted
     print(f"Saved {inserted} new jobs. Skipped {skipped} duplicates.")
 
+
 def job_search():
     location_mode = get_setting("location_mode")
 
     if location_mode == "remote":
         search_location = None
-        is_remote       = True
+        is_remote = True
         search_distance = None
         google_location = "remote"
     else:
         search_location = get_setting(location_mode)  # gets "city" or "zip" value
-        is_remote       = False
+        is_remote = False
         search_distance = int(get_setting("radius"))
         google_location = search_location
 
-    sites        = ["linkedin", "indeed", "glassdoor", "zip_recruiter", "google"]
+    sites = ["linkedin", "indeed", "glassdoor", "zip_recruiter", "google"]
     active_sites = [s for s in sites if get_setting(s) == "True"]
 
     with sqlite3.connect(DB) as conn:
         cursor = conn.cursor()
-        job_titles = [row[0] for row in cursor.execute(
-            "SELECT title FROM job_titles"
-        ).fetchall()]
+        job_titles = [
+            row[0] for row in cursor.execute("SELECT title FROM job_titles").fetchall()
+        ]
 
     jobs = scrape_jobs(
-        site_name          = active_sites,
-        search_term        = job_titles[0],
-        google_search_term = f"{job_titles[0]} jobs near {google_location} since yesterday",
-        location           = search_location,
-        is_remote          = is_remote,
-        results_wanted     = int(get_setting("postings_per_site")),
-        hours_old          = int(get_setting("posting_age")),
-        country_indeed     = "USA",
-        distance           = search_distance,
+        site_name=active_sites,
+        search_term=job_titles[0],
+        google_search_term=f"{job_titles[0]} jobs near {google_location} since yesterday",
+        location=search_location,
+        is_remote=is_remote,
+        results_wanted=int(get_setting("postings_per_site")),
+        hours_old=int(get_setting("posting_age")),
+        country_indeed="USA",
+        distance=search_distance,
     )
 
     print(f"Found {len(jobs)} jobs")
@@ -272,6 +286,7 @@ def job_search():
 
     with sqlite3.connect(DB) as conn:
         save_jobs_to_db(jobs, conn)
+
 
 def get_setting(key):
     """Read a single setting value from the database."""
@@ -282,19 +297,18 @@ def get_setting(key):
         ).fetchone()
     return result[0] if result else None
 
+
 def set_setting(key, value):
     """Write a single setting value to the database."""
     with sqlite3.connect(DB) as conn:
         cursor = conn.cursor()
-        cursor.execute(
-            "UPDATE settings SET value = ? WHERE key = ?", (str(value), key)
-        )
+        cursor.execute("UPDATE settings SET value = ? WHERE key = ?", (str(value), key))
         conn.commit()
+
 
 def options_menu():
     opt_input = ""
     while opt_input != "back":
-
         # Show current settings summary each time the menu loads
         print("\n--- Current Settings ---")
         print(f"  Location mode : {get_setting('location_mode')}")
@@ -329,10 +343,11 @@ def options_menu():
         elif opt_input != "back":
             print("Unrecognized option.")
 
+
 def change_location_settings():
     print("\n-- Location Settings --")
     print("  Location mode options: city, zip, remote")
-    
+
     mode = input(f"  Location mode [{get_setting('location_mode')}]: ").strip().lower()
     if mode in ("city", "zip", "remote"):
         set_setting("location_mode", mode)
@@ -358,6 +373,7 @@ def change_location_settings():
         else:
             print("  Invalid radius — must be a number.")
 
+
 def change_search_settings():
     print("\n-- Search Settings --")
 
@@ -369,7 +385,9 @@ def change_search_settings():
         else:
             print("  Invalid value — must be a number.")
 
-    per_site = input(f"  Results per site [{get_setting('postings_per_site')}]: ").strip()
+    per_site = input(
+        f"  Results per site [{get_setting('postings_per_site')}]: "
+    ).strip()
     if per_site:
         if per_site.isdigit():
             set_setting("postings_per_site", per_site)
@@ -378,7 +396,9 @@ def change_search_settings():
             print("  Invalid value — must be a number.")
 
     # ← Add this block
-    limit = input(f"  Max jobs to display in list [{get_setting('list_limit')}]: ").strip()
+    limit = input(
+        f"  Max jobs to display in list [{get_setting('list_limit')}]: "
+    ).strip()
     if limit:
         if limit.isdigit():
             set_setting("list_limit", limit)
@@ -386,26 +406,34 @@ def change_search_settings():
         else:
             print("  Invalid value — must be a number.")
 
+
 def change_site_settings():
     sites = ["linkedin", "indeed", "glassdoor", "zip_recruiter", "google"]
     print("\n-- Job Site Toggle --")
 
     for site in sites:
         current = get_setting(site)
-        toggle = input(f"  {site:<15} (currently {current}) — enable? [y/n]: ").strip().lower()
+        toggle = (
+            input(f"  {site:<15} (currently {current}) — enable? [y/n]: ")
+            .strip()
+            .lower()
+        )
         if toggle == "y":
             set_setting(site, "True")
             print(f"  ✓ {site} enabled")
         elif toggle == "n":
             set_setting(site, "False")
-            print(f"  ✓ {site} disabled")# blank input = keep current value
+            print(f"  ✓ {site} disabled")  # blank input = keep current value
+
 
 def change_job_titles():
     print("\n-- Job Title Search Terms --")
 
     with sqlite3.connect(DB) as conn:
         cursor = conn.cursor()
-        titles = [row[0] for row in cursor.execute("SELECT title FROM job_titles").fetchall()]
+        titles = [
+            row[0] for row in cursor.execute("SELECT title FROM job_titles").fetchall()
+        ]
 
     print("  Current titles:")
     for i, t in enumerate(titles, 1):
@@ -433,18 +461,21 @@ def change_job_titles():
             rem_title = cmd[7:].strip().lower()
             with sqlite3.connect(DB) as conn:
                 cursor = conn.cursor()
-                cursor.execute(
-                    "DELETE FROM job_titles WHERE title = ?", (rem_title,)
-                )
+                cursor.execute("DELETE FROM job_titles WHERE title = ?", (rem_title,))
                 conn.commit()
             print(f"  ✓ Removed '{rem_title}'")
         else:
             print("  Unknown command. Use 'add <title>', 'remove <title>', or 'done'.")
 
+
 def change_email_settings():
     print("\n-- Email Settings --")
 
-    enabled = input(f"  Email enabled [{get_setting('email_enabled')}] — enable? [y/n]: ").strip().lower()
+    enabled = (
+        input(f"  Email enabled [{get_setting('email_enabled')}] — enable? [y/n]: ")
+        .strip()
+        .lower()
+    )
     if enabled == "y":
         set_setting("email_enabled", "True")
         print("  ✓ Email enabled")
@@ -465,17 +496,19 @@ def change_email_settings():
     # Recipients
     with sqlite3.connect(DB) as conn:
         cursor = conn.cursor()
-        recipients = [r[0] for r in cursor.execute(
-            "SELECT address FROM email_recipients"
-        ).fetchall()]
+        recipients = [
+            r[0]
+            for r in cursor.execute("SELECT address FROM email_recipients").fetchall()
+        ]
     print(f"  Current recipients: {recipients}")
-    
+
     add_rec = input("  Add recipient (leave blank to skip): ").strip()
     if add_rec:
         with sqlite3.connect(DB) as conn:
             cursor = conn.cursor()
             cursor.execute(
-                "INSERT OR IGNORE INTO email_recipients (address) VALUES (?)", (add_rec,)
+                "INSERT OR IGNORE INTO email_recipients (address) VALUES (?)",
+                (add_rec,),
             )
             conn.commit()
         print(f"  ✓ Added '{add_rec}'")
@@ -484,9 +517,7 @@ def change_email_settings():
     if rem_rec:
         with sqlite3.connect(DB) as conn:
             cursor = conn.cursor()
-            cursor.execute(
-                "DELETE FROM email_recipients WHERE address = ?", (rem_rec,)
-            )
+            cursor.execute("DELETE FROM email_recipients WHERE address = ?", (rem_rec,))
             conn.commit()
         print(f"  ✓ Removed '{rem_rec}'")
 
