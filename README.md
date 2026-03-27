@@ -8,4 +8,4 @@
 - Attempts to match jobs from multiple sources to avoid duplication.
 - Creates scheduled digests of newly opened jobs.
 - Allows for customization of job location and in-office requirements (i.e. remote, hybrid, on-site)
-  
+- Will allow for a black list to avoid getting jobs from companies that you are not interested in
