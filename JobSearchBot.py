@@ -247,6 +247,7 @@ def save_jobs_to_db(jobs, conn):
 
 
 def job_search():
+    print("Searching...")
     location_mode = get_setting("location_mode")
 
     if location_mode == "remote":
